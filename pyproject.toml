@@ -1,0 +1,10 @@
+[project]
+name = "triton-kernels"
+version = "0.1.0"
+description = "Random Triton kernels"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.3.5",
+    "torch>=2.9.1",
+]
