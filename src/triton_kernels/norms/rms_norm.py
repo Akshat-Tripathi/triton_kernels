@@ -1,4 +1,3 @@
-from torch.cuda import device
 import torch
 import triton
 import triton.language as tl
@@ -8,7 +7,6 @@ import triton.language as tl
 def ms_reduction_kernel(
     x_ptr,
     ms_ptr,
-    eps: float,
     B: int,
     N: int,
     BLOCK_B: tl.constexpr,
@@ -30,7 +28,7 @@ def ms_reduction_kernel(
 
     x = tl.load(x_ptr + offs_x, mask_x, 0)
 
-    ms = tl.sum(x * x + eps, axis=1) / N
+    ms = tl.sum(x * x, axis=1) / N
 
     tl.atomic_add(ms_ptr + offs_b, ms, mask_b, sem="relaxed")
 
@@ -42,6 +40,7 @@ def rms_norm_kernel(
     out_ptr,
     gamma: float,
     beta: float,
+    eps: float,
     B: int,
     N: int,
     BLOCK_B: tl.constexpr,
@@ -64,7 +63,7 @@ def rms_norm_kernel(
     x = tl.load(x_ptr + offs_x, mask_x, 0)
     ms = tl.load(ms_ptr + offs_b, mask_b)
 
-    out = x * tl.rsqrt(ms) * gamma + beta
+    out = x * tl.rsqrt(ms + eps) * gamma + beta
 
     tl.store(out_ptr + offs_x, out, mask_x)
 
@@ -85,8 +84,8 @@ def rmsnorm(
 
     ms = torch.zeros((B,), dtype=x.dtype, device=x.device)
 
-    ms_reduction_kernel[grid](x, ms, eps, B, N, BLOCK_B, BLOCK_N)  # ty:ignore[invalid-argument-type]
-    rms_norm_kernel[grid](x, ms, out, gamma, beta, B, N, BLOCK_B, BLOCK_N)  # ty:ignore[invalid-argument-type]
+    ms_reduction_kernel[grid](x, ms, B, N, BLOCK_B, BLOCK_N)  # ty:ignore[invalid-argument-type]
+    rms_norm_kernel[grid](x, ms, out, gamma, beta, eps, B, N, BLOCK_B, BLOCK_N)  # ty:ignore[invalid-argument-type]
 
     return out
 
@@ -98,7 +97,7 @@ if __name__ == "__main__":
     gamma = 4.2
     beta = 3.42
     eps = 1e-5
-    ref_output = gamma * x * (x * x + eps).mean(dim=1).rsqrt()[:, None] + beta
+    ref_output = gamma * x * ((x * x).mean(dim=1) + eps).rsqrt()[:, None] + beta
 
     output = torch.zeros_like(ref_output)
     rmsnorm(x, output, gamma, beta, eps, B, N)

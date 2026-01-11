@@ -45,7 +45,7 @@ def rope_forward_kernel(
     BLOCK_D: tl.constexpr,
     NUM_D_STAGES: tl.constexpr,
     NUM_H_STAGES: tl.constexpr,
-    WARP_SPECIALISE: tl.constexpr = False,
+    WARP_SPECIALISE: tl.constexpr = False,  # ty:ignore[invalid-parameter-default]
 ):
     """
     Apply rotary positional embeddings to input
@@ -146,7 +146,7 @@ def rope_forward_inplace_kernel(
     BLOCK_D: tl.constexpr,
     NUM_D_STAGES: tl.constexpr,
     NUM_H_STAGES: tl.constexpr,
-    WARP_SPECIALISE: tl.constexpr = False,
+    WARP_SPECIALISE: tl.constexpr = False,  # ty:ignore[invalid-parameter-default]
 ):
     """
     Apply rotary positional embeddings to input
